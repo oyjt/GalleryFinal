@@ -18,7 +18,10 @@ package cn.finalteam.galleryfinal;
 
 import android.content.Context;
 import android.os.Environment;
+import android.widget.AbsListView;
+
 import java.io.File;
+import java.io.Serializable;
 
 /**
  * Desction:
@@ -26,24 +29,28 @@ import java.io.File;
  * Date:15/12/27 下午1:41
  */
 public class CoreConfig {
-    private boolean debug;
     private Context context;
     private ImageLoader imageLoader;
     private File takePhotoFolder;
     private File editPhotoCacheFolder;
     private ThemeConfig themeConfig;
-    private FunctionConfig mFunctionConfig;
-    private int mAnimRes;
+    private FunctionConfig functionConfig;
+    private int animRes;
+    private AbsListView.OnScrollListener onScrollListener;
 
     private CoreConfig(Builder builder) {
-        this.debug = builder.debug;
         this.context = builder.context;
         this.imageLoader = builder.imageLoader;
         this.takePhotoFolder = builder.takePhotoFolder;
         this.editPhotoCacheFolder = builder.editPhotoCacheFolder;
         this.themeConfig = builder.themeConfig;
-        this.mFunctionConfig = builder.mFunctionConfig;
-        this.mAnimRes = builder.mAnimRes;
+        this.functionConfig = builder.functionConfig;
+        if(builder.noAnimcation) {
+            this.animRes = -1;
+        } else {
+            this.animRes = builder.animRes;
+        }
+        this.onScrollListener = builder.onScrollListener;
 
         if ( takePhotoFolder == null ) {
             takePhotoFolder = new File(Environment.getExternalStorageDirectory(), "/DCIM/" + "GalleryFinal/");
@@ -63,23 +70,19 @@ public class CoreConfig {
     public static class Builder {
         private Context context;
         private ThemeConfig themeConfig;
-        private boolean debug;
         private ImageLoader imageLoader;
         private File takePhotoFolder;//配置拍照缓存目录
         private File editPhotoCacheFolder;//配置编辑图片产生的文件缓存目录
-        private FunctionConfig mFunctionConfig;
-        private int mAnimRes;
+        private FunctionConfig functionConfig;
+        private int animRes;
+        private boolean noAnimcation;
+        private AbsListView.OnScrollListener onScrollListener;
 
         public Builder(Context context, ImageLoader imageLoader, ThemeConfig themeConfig) {
             this.context = context;
             this.imageLoader = imageLoader;
             this.themeConfig = themeConfig;
-            this.mAnimRes = R.anim.gf_flip_horizontal_in;
-        }
-
-        public Builder setDebug(boolean debug) {
-            this.debug = debug;
-            return this;
+            this.animRes = R.anim.gf_flip_horizontal_in;
         }
 
         public Builder setTakePhotoFolder(File takePhotoFolder) {
@@ -92,24 +95,38 @@ public class CoreConfig {
             return this;
         }
 
-        public Builder setFunctionConfig(FunctionConfig FunctionConfig) {
-            this.mFunctionConfig = FunctionConfig;
+        public Builder setFunctionConfig(FunctionConfig functionConfig) {
+            this.functionConfig = functionConfig;
             return this;
         }
 
-
         public Builder setAnimation(int animRes) {
-            this.mAnimRes = animRes;
+            this.animRes = animRes;
+            return this;
+        }
+
+        /**
+         *  禁止动画
+         * @return
+         */
+        public Builder setNoAnimcation(boolean noAnimcation) {
+            this.noAnimcation = noAnimcation;
+            return this;
+        }
+
+        /**
+         * 添加滑动事件用于优化图片加载，只有停止滑动了才去加载图片
+         * @param listener
+         * @return
+         */
+        public Builder setPauseOnScrollListener(AbsListView.OnScrollListener listener) {
+            this.onScrollListener = listener;
             return this;
         }
 
         public CoreConfig build() {
             return new CoreConfig(this);
         }
-    }
-
-    public boolean isDebug() {
-        return debug;
     }
 
     public Context getContext() {
@@ -129,7 +146,7 @@ public class CoreConfig {
     }
 
     public int getAnimation() {
-        return mAnimRes;
+        return animRes;
     }
 
     public ThemeConfig getThemeConfig() {
@@ -137,7 +154,10 @@ public class CoreConfig {
     }
 
     public FunctionConfig getFunctionConfig() {
-        return mFunctionConfig;
+        return functionConfig;
     }
 
+    AbsListView.OnScrollListener getPauseOnScrollListener() {
+        return onScrollListener;
+    }
 }

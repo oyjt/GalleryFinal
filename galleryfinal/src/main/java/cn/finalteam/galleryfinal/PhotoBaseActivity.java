@@ -26,22 +26,21 @@ import android.provider.MediaStore;
 import android.util.DisplayMetrics;
 import android.view.Window;
 import android.widget.Toast;
-
-import java.io.File;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-
 import cn.finalteam.galleryfinal.model.PhotoInfo;
+import cn.finalteam.galleryfinal.permission.EasyPermissions;
+import cn.finalteam.galleryfinal.utils.ILogger;
 import cn.finalteam.galleryfinal.utils.MediaScanner;
 import cn.finalteam.galleryfinal.utils.Utils;
 import cn.finalteam.toolsfinal.ActivityManager;
 import cn.finalteam.toolsfinal.DateUtils;
 import cn.finalteam.toolsfinal.DeviceUtils;
-import cn.finalteam.toolsfinal.FileUtils;
-import cn.finalteam.toolsfinal.Logger;
 import cn.finalteam.toolsfinal.StringUtils;
-import pub.devrel.easypermissions.EasyPermissions;
+import cn.finalteam.toolsfinal.io.FileUtils;
+
+import java.io.File;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
 
 /**
  * Desction:
@@ -57,6 +56,22 @@ public abstract class PhotoBaseActivity extends Activity implements EasyPermissi
 
     protected int mScreenWidth = 720;
     protected int mScreenHeight = 1280;
+
+    protected boolean mTakePhotoAction;//打开相机动作
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putParcelable("takePhotoUri", mTakePhotoUri);
+        outState.putString("photoTargetFolder", mPhotoTargetFolder);
+    }
+
+    @Override
+    protected void onRestoreInstanceState(Bundle savedInstanceState) {
+        super.onRestoreInstanceState(savedInstanceState);
+        mTakePhotoUri = savedInstanceState.getParcelable("takePhotoUri");
+        mPhotoTargetFolder = savedInstanceState.getString("photoTargetFolder");
+    }
 
     protected Handler mFinishHanlder = new Handler() {
         @Override
@@ -75,13 +90,15 @@ public abstract class PhotoBaseActivity extends Activity implements EasyPermissi
         DisplayMetrics dm = DeviceUtils.getScreenPix(this);
         mScreenWidth = dm.widthPixels;
         mScreenHeight = dm.heightPixels;
+
     }
 
     @Override
     protected void onDestroy() {
-        System.gc();
         super.onDestroy();
-        mMediaScanner.unScanFile();
+        if (mMediaScanner != null) {
+            mMediaScanner.unScanFile();
+        }
         ActivityManager.getActivityManager().finishActivity(this);
     }
 
@@ -94,7 +111,11 @@ public abstract class PhotoBaseActivity extends Activity implements EasyPermissi
      */
     protected void takePhotoAction() {
         if (!DeviceUtils.existSDCard()) {
-            toast("没有SD卡不能拍照呢~");
+            String errormsg = getString(R.string.empty_sdcard);
+            toast(errormsg);
+            if (mTakePhotoAction) {
+                resultFailure(errormsg, true);
+            }
             return;
         }
 
@@ -104,17 +125,18 @@ public abstract class PhotoBaseActivity extends Activity implements EasyPermissi
         } else {
             takePhotoFolder = new File(mPhotoTargetFolder);
         }
-
+        boolean suc = FileUtils.mkdirs(takePhotoFolder);
         File toFile = new File(takePhotoFolder, "IMG" + DateUtils.format(new Date(), "yyyyMMddHHmmss") + ".jpg");
-        boolean suc = FileUtils.makeFolders(toFile);
-        Logger.d("create folder=" + toFile.getAbsolutePath());
+
+        ILogger.d("create folder=" + toFile.getAbsolutePath());
         if (suc) {
             mTakePhotoUri = Uri.fromFile(toFile);
             Intent captureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
             captureIntent.putExtra(MediaStore.EXTRA_OUTPUT, mTakePhotoUri);
             startActivityForResult(captureIntent, GalleryFinal.TAKE_REQUEST_CODE);
         } else {
-            Logger.e("create file failure");
+            takePhotoFailure();
+            ILogger.e("create file failure");
         }
     }
 
@@ -123,14 +145,27 @@ public abstract class PhotoBaseActivity extends Activity implements EasyPermissi
         if ( requestCode == GalleryFinal.TAKE_REQUEST_CODE ) {
             if (resultCode == RESULT_OK && mTakePhotoUri != null) {
                 final String path = mTakePhotoUri.getPath();
-                final PhotoInfo info = new PhotoInfo();
-                info.setPhotoId(Utils.getRandom(10000, 99999));
-                info.setPhotoPath(path);
-                updateGallery(path);
-                takeResult(info);
+                if (new File(path).exists()) {
+                    final PhotoInfo info = new PhotoInfo();
+                    info.setPhotoId(Utils.getRandom(10000, 99999));
+                    info.setPhotoPath(path);
+                    updateGallery(path);
+                    takeResult(info);
+                } else {
+                    takePhotoFailure();
+                }
             } else {
-                toast(getString(R.string.take_photo_fail));
+                takePhotoFailure();
             }
+        }
+    }
+
+    private void takePhotoFailure() {
+        String errormsg = getString(R.string.take_photo_fail);
+        if (mTakePhotoAction) {
+            resultFailure(errormsg, true);
+        } else {
+            toast(errormsg);
         }
     }
 
@@ -138,7 +173,9 @@ public abstract class PhotoBaseActivity extends Activity implements EasyPermissi
      * 更新相册
      */
     private void updateGallery(String filePath) {
-        mMediaScanner.scanFile(filePath, "image/jpeg");
+        if (mMediaScanner != null) {
+            mMediaScanner.scanFile(filePath, "image/jpeg");
+        }
     }
 
     protected void resultData(ArrayList<PhotoInfo> photoList) {
@@ -154,7 +191,7 @@ public abstract class PhotoBaseActivity extends Activity implements EasyPermissi
         finishGalleryFinalPage();
     }
 
-    protected void resultFailure(String errormsg, boolean delayFinish) {
+    protected void resultFailureDelayed(String errormsg, boolean delayFinish) {
         GalleryFinal.OnHanlderResultCallback callback = GalleryFinal.getCallback();
         int requestCode = GalleryFinal.getRequestCode();
         if ( callback != null ) {
@@ -167,9 +204,24 @@ public abstract class PhotoBaseActivity extends Activity implements EasyPermissi
         }
     }
 
+    protected void resultFailure(String errormsg, boolean delayFinish) {
+        GalleryFinal.OnHanlderResultCallback callback = GalleryFinal.getCallback();
+        int requestCode = GalleryFinal.getRequestCode();
+        if ( callback != null ) {
+            callback.onHanlderFailure(requestCode, errormsg);
+        }
+        if(delayFinish) {
+            finishGalleryFinalPage();
+        } else {
+            finishGalleryFinalPage();
+        }
+    }
+
     private void finishGalleryFinalPage() {
         ActivityManager.getActivityManager().finishActivity(PhotoEditActivity.class);
         ActivityManager.getActivityManager().finishActivity(PhotoSelectActivity.class);
+        Global.mPhotoSelectActivity = null;
+        System.gc();
     }
 
     protected abstract void takeResult(PhotoInfo info);

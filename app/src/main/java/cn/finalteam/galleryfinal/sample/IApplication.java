@@ -43,8 +43,8 @@ public class IApplication extends Application {
 //                .setEnablePreview(true)
 //                .build();
 //        CoreConfig coreConfig = new CoreConfig.Builder(this, new UILImageLoader(), theme)
-//                .setDebug(BuildConfig.DEBUG)
 //                .setFunctionConfig(functionConfig)
+//                .setPauseOnScrollListener(new UILPauseOnScrollListener(false, true))
 //                .build();
 //        GalleryFinal.init(coreConfig);
     }

@@ -16,7 +16,11 @@
 
 package cn.finalteam.galleryfinal;
 
+import android.support.annotation.IntRange;
+
 import cn.finalteam.galleryfinal.model.PhotoInfo;
+
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 
@@ -86,7 +90,7 @@ public class FunctionConfig implements Cloneable{
             return this;
         }
 
-        public Builder setMutiSelectMaxSize(int maxSize) {
+        public Builder setMutiSelectMaxSize(@IntRange(from = 1, to = Integer.MAX_VALUE) int maxSize) {
             this.maxSize = maxSize;
             return this;
         }
@@ -111,12 +115,12 @@ public class FunctionConfig implements Cloneable{
             return this;
         }
 
-        public Builder setCropWidth(int width) {
+        public Builder setCropWidth(@IntRange(from = 1, to = Integer.MAX_VALUE)int width) {
             this.cropWidth = width;
             return this;
         }
 
-        public Builder setCropHeight(int height) {
+        public Builder setCropHeight(@IntRange(from = 1, to = Integer.MAX_VALUE)int height) {
             this.cropHeight = height;
             return this;
         }

@@ -11,7 +11,9 @@ Android自定义相册，实现了拍照、图片选择（单选/多选）、 �
 * 系统Gallery App不美观
 * ……
 
-**可以切换到develop分支查看最新的开发代码**
+** [简书文章](http://www.jianshu.com/p/48ddd6756b7a) **
+
+###**注：1)、现支持所有主流的ImageLoader，包括Glide/Fresco/Picasso/UIL等，如果你觉得还不满足，欢迎在issues上提问。2)、本项目是基于SDK 23（6.0）系统编译的请开发者将targetSdkVersion改成23**
 
 ## 截图展示
 Demo apk二维码地址：
@@ -27,15 +29,26 @@ Demo apk二维码地址：
 通过Gradle抓取:
 
 ```gradle
-compile 'cn.finalteam:galleryfinal:1.4.3'
+compile 'cn.finalteam:galleryfinal:1.4.8.7'
 compile 'com.android.support:support-v4:23.1.1'
 ```
 
+# Next Version
+* 添加多选强制裁剪
+* 图片分页查看
+* 拍照自动纠正图片(自动旋转)
+* 添加配置-配置图片压缩到指定大小后返回调用者
+* 精简配置
+* ……
+
+# 1.4.8.4更新内容
+* 解决fresco gif图片不显示问题
 
 ## 具体使用
 1、通过gradle把GalleryFinal添加到你的项目里
 
 2、在你的Application中添加配置GallerFinal
+
 ```java
 //设置主题
 //ThemeConfig.CYAN
@@ -65,280 +78,23 @@ GalleryFinal.init(coreConfig);
 
 3、选择图片加载器
 
-* **UIL**
+* **UIL实现**
+[使用UniversalImageLoader点这里](https://github.com/pengjianbo/GalleryFinal/blob/master/app/src/main/java/cn/finalteam/galleryfinal/sample/loader/UILImageLoader.java)
 
-```java
-public class UILImageLoader implements cn.finalteam.galleryfinal.ImageLoader {
+* **Glide实现**
+[使用Glide点这里](https://github.com/pengjianbo/GalleryFinal/blob/master/app/src/main/java/cn/finalteam/galleryfinal/sample/loader/GlideImageLoader.java)
 
-    private Bitmap.Config mImageConfig;
+* **Picasso实现**
+[使用picasso点这里](https://github.com/pengjianbo/GalleryFinal/blob/master/app/src/main/java/cn/finalteam/galleryfinal/sample/loader/PicassoImageLoader.java)
 
-    public UILImageLoader() {
-        this(Bitmap.Config.RGB_565);
-    }
+* **fresco实现**
+[使用fresco点这里](https://github.com/pengjianbo/GalleryFinal/blob/master/app/src/main/java/cn/finalteam/galleryfinal/sample/loader/FrescoImageLoader.java)
 
-    public UILImageLoader(Bitmap.Config config) {
-        this.mImageConfig = config;
-    }
+* **xUtils3实现**
+[使用xUtils点这里](https://github.com/pengjianbo/GalleryFinal/blob/master/app/src/main/java/cn/finalteam/galleryfinal/sample/loader/XUtilsImageLoader.java)
 
-    @Override
-    public void displayImage(Activity activity, String path, GFImageView imageView, Drawable defaultDrawable, int width, int height) {
-        DisplayImageOptions options = new DisplayImageOptions.Builder()
-                .cacheOnDisk(false)
-                .cacheInMemory(false)
-                .bitmapConfig(mImageConfig)
-                .build();
-        ImageSize imageSize = new ImageSize(width, height);
-        ImageLoader.getInstance().displayImage("file://" + path, new ImageViewAware(imageView), options, imageSize, null, null);
-    }
-
-    @Override
-    public void clearMemoryCache() {
-
-    }
-}
-```
-
-* **Glide**
-
-```java
-public class GlideImageLoader implements cn.finalteam.galleryfinal.ImageLoader {
-
-    @Override
-    public void displayImage(Activity activity, String path, final GFImageView imageView, Drawable defaultDrawable, int width, int height) {
-        Glide.with(activity)
-                .load("file://" + path)
-                .placeholder(defaultDrawable)
-                .error(defaultDrawable)
-                .override(width, height)
-                .diskCacheStrategy(DiskCacheStrategy.NONE) //不缓存到SD卡
-                .skipMemoryCache(true)
-                //.centerCrop()
-                .into(new ImageViewTarget<GlideDrawable>(imageView) {
-                    @Override
-                    protected void setResource(GlideDrawable resource) {
-                        imageView.setImageDrawable(resource);
-                    }
-
-                    @Override
-                    public void setRequest(Request request) {
-                        imageView.setTag(R.id.adapter_item_tag_key,request);
-                    }
-
-                    @Override
-                    public Request getRequest() {
-                        return (Request) imageView.getTag(R.id.adapter_item_tag_key);
-                    }
-                });
-    }
-
-    @Override
-    public void clearMemoryCache() {
-    }
-}
-
-```
-
-* **Picasso**
-
-```java
-public class PicassoImageLoader implements cn.finalteam.galleryfinal.ImageLoader {
-
-    private Bitmap.Config mConfig;
-
-    public PicassoImageLoader() {
-        this(Bitmap.Config.RGB_565);
-    }
-
-    public PicassoImageLoader(Bitmap.Config config) {
-        this.mConfig = config;
-    }
-
-    @Override
-    public void displayImage(Activity activity, String path, GFImageView imageView, Drawable defaultDrawable, int width, int height) {
-        Picasso.with(activity)
-                .load(new File(path))
-                .placeholder(defaultDrawable)
-                .error(defaultDrawable)
-                .config(mConfig)
-                .resize(width, height)
-                .centerInside()
-                .memoryPolicy(MemoryPolicy.NO_CACHE, MemoryPolicy.NO_STORE)
-                .into(imageView);
-    }
-
-    @Override
-    public void clearMemoryCache() {
-    }
-}
-```
-
-* **fresco**
- 
-```java
-public class FrescoImageLoader implements cn.finalteam.galleryfinal.ImageLoader {
-
-    private Context context;
-
-    public FrescoImageLoader(Context context) {
-        this(context, Bitmap.Config.RGB_565);
-    }
-
-    public FrescoImageLoader(Context context, Bitmap.Config config) {
-        this.context = context;
-        ImagePipelineConfig imagePipelineConfig = ImagePipelineConfig.newBuilder(context)
-                .setBitmapsConfig(config)
-                .build();
-        Fresco.initialize(context, imagePipelineConfig);
-    }
-
-    @Override
-    public void displayImage(Activity activity, String path, GFImageView imageView, Drawable defaultDrawable, int width, int height) {
-        Resources resources = context.getResources();
-        GenericDraweeHierarchy hierarchy = new GenericDraweeHierarchyBuilder(resources)
-                .setFadeDuration(300)
-                .setPlaceholderImage(defaultDrawable)
-                .setFailureImage(defaultDrawable)
-                .setProgressBarImage(new ProgressBarDrawable())
-                .build();
-        final DraweeHolder<GenericDraweeHierarchy> draweeHolder = DraweeHolder.create(hierarchy, context);
-        imageView.setOnImageViewListener(new GFImageView.OnImageViewListener() {
-            @Override
-            public void onDetach() {
-                draweeHolder.onDetach();
-            }
-
-            @Override
-            public void onAttach() {
-                draweeHolder.onAttach();
-            }
-
-            @Override
-            public boolean verifyDrawable(Drawable dr) {
-                if (dr == draweeHolder.getHierarchy().getTopLevelDrawable()) {
-                    return true;
-                }
-                return false;
-            }
-        });
-        Uri uri = new Uri.Builder()
-                .scheme(UriUtil.LOCAL_FILE_SCHEME)
-                .path(path)
-                .build();
-        displayImage(uri, new ResizeOptions(width, height), imageView, draweeHolder);
-    }
-
-    /**
-     * 加载远程图片
-     *
-     * @param url
-     * @param imageSize
-     */
-    private void displayImage(Uri url, ResizeOptions imageSize, final ImageView imageView, final DraweeHolder<GenericDraweeHierarchy> draweeHolder) {
-        ImageRequest imageRequest = ImageRequestBuilder
-                .newBuilderWithSource(url)
-                .setResizeOptions(imageSize)//图片目标大小
-                .build();
-        ImagePipeline imagePipeline = Fresco.getImagePipeline();
-
-        final DataSource<CloseableReference<CloseableImage>> dataSource = imagePipeline.fetchDecodedImage(imageRequest, this);
-        DraweeController controller = Fresco.newDraweeControllerBuilder()
-                .setOldController(draweeHolder.getController())
-                .setImageRequest(imageRequest)
-                .setControllerListener(new BaseControllerListener<ImageInfo>() {
-                    @Override
-                    public void onFinalImageSet(String s, ImageInfo imageInfo, Animatable animatable) {
-                        CloseableReference<CloseableImage> imageReference = null;
-                        try {
-                            imageReference = dataSource.getResult();
-                            if (imageReference != null) {
-                                CloseableImage image = imageReference.get();
-                                if (image != null && image instanceof CloseableStaticBitmap) {
-                                    CloseableStaticBitmap closeableStaticBitmap = (CloseableStaticBitmap) image;
-                                    Bitmap bitmap = closeableStaticBitmap.getUnderlyingBitmap();
-                                    if (bitmap != null && imageView != null) {
-                                        imageView.setImageBitmap(bitmap);
-                                    }
-                                }
-                            }
-                        } finally {
-                            dataSource.close();
-                            CloseableReference.closeSafely(imageReference);
-                        }
-                    }
-                })
-                .setTapToRetryEnabled(true)
-                .build();
-        draweeHolder.setController(controller);
-    }
-
-    @Override
-    public void clearMemoryCache() {
-
-    }
-}
-```
-
-* **xUtils3**
-
-```java
-public class XUtilsImageLoader implements cn.finalteam.galleryfinal.ImageLoader {
-
-    private Bitmap.Config mImageConfig;
-
-    public XUtilsImageLoader() {
-        this(Bitmap.Config.RGB_565);
-    }
-
-    public XUtilsImageLoader(Bitmap.Config config) {
-        this.mImageConfig = config;
-    }
-
-    @Override
-    public void displayImage(Activity activity, String path, GFImageView imageView, Drawable defaultDrawable, int width, int height) {
-        ImageOptions options = new ImageOptions.Builder()
-                .setLoadingDrawable(defaultDrawable)
-                .setFailureDrawable(defaultDrawable)
-                .setConfig(mImageConfig)
-                .setSize(width, height)
-                .setCrop(true)
-                .setUseMemCache(false)
-                .build();
-        x.image().bind(imageView, "file://" + path, options);
-    }
-
-    @Override
-    public void clearMemoryCache() {
-    }
-}
-
-```
-
-* **xUitls2**
-
-```java
-public class XUtils2ImageLoader implements cn.finalteam.galleryfinal.ImageLoader {
-
-    private BitmapUtils bitmapUtils;
-
-    public XUtils2ImageLoader(Context context) {
-        bitmapUtils = new BitmapUtils(context);
-    }
-
-    @Override
-    public void displayImage(Activity activity, String path, GFImageView imageView, Drawable defaultDrawable, int width, int height) {
-        BitmapDisplayConfig config = new BitmapDisplayConfig();
-        config.setLoadFailedDrawable(defaultDrawable);
-        config.setLoadingDrawable(defaultDrawable);
-        config.setBitmapConfig(Bitmap.Config.RGB_565);
-        config.setBitmapMaxSize(new BitmapSize(width, height));
-        bitmapUtils.display(imageView, "file://" + path, config);
-    }
-
-    @Override
-    public void clearMemoryCache() {
-    }
-}
-```
+* **xUitls2实现**
+[使用xUtils2点这里](https://github.com/pengjianbo/GalleryFinal/blob/master/app/src/main/java/cn/finalteam/galleryfinal/sample/loader/XUtils2ImageLoader.java)
 
 
 * **自定义**
@@ -394,17 +150,17 @@ GalleryFinal.openCamera(REQUEST_CODE_CAMERA, functionConfig, mOnHanlderResultCal
 * 使用裁剪
 
 ```java
-GalleryFinal.openCrop(REQUEST_CODE_CAMERA, mOnHanlderResultCallback);
+GalleryFinal.openCrop(REQUEST_CODE_CROP, mOnHanlderResultCallback);
 //带配置
-GalleryFinal.openCrop(REQUEST_CODE_CAMERA, functionConfig, mOnHanlderResultCallback);
+GalleryFinal.openCrop(REQUEST_CODE_CROP, functionConfig, mOnHanlderResultCallback);
 ```
 
 * 使用图片编辑
 
 ```java
-GalleryFinal.openEdit(REQUEST_CODE_CAMERA, mOnHanlderResultCallback);
+GalleryFinal.openEdit(REQUEST_CODE_EDIT, mOnHanlderResultCallback);
 //带配置
-GalleryFinal.openEdit(REQUEST_CODE_CAMERA, functionConfig, mOnHanlderResultCallback);
+GalleryFinal.openEdit(REQUEST_CODE_EDIT, functionConfig, mOnHanlderResultCallback);
 ```
 
 * **FunctionConfig Builder类说明**
@@ -414,7 +170,7 @@ setMutiSelect(boolean)//配置是否多选
 setMutiSelectMaxSize(int maxSize)//配置多选数量
 setEnableEdit(boolean)//开启编辑功能
 setEnableCrop(boolean)//开启裁剪功能
-setEnableRotate(boolean)//开启选择功能
+setEnableRotate(boolean)//开启旋转功能
 setEnableCamera(boolean)//开启相机功能
 setCropWidth(int width)//裁剪宽度
 setCropHeight(int height)//裁剪高度
@@ -469,7 +225,7 @@ setFabPressedColor//设置Floating按钮Pressed状态颜色
 setIconBack//设置返回按钮icon
 setIconCamera//设置相机icon
 setIconCrop//设置裁剪icon
-setIconRotate//设置选择icon
+setIconRotate//设置旋转icon
 setIconClear//设置清楚选择按钮icon（标题栏清除选择按钮）
 setIconFolderArrow//设置标题栏文件夹下拉arrow图标
 setIconDelete//设置多选编辑页删除按钮icon
@@ -487,6 +243,8 @@ setDebug //debug开关
 setEditPhotoCacheFolder(File file)//配置编辑（裁剪和旋转）功能产生的cache文件保存目录，不做配置的话默认保存在/sdcard/GalleryFinal/edittemp/
 setTakePhotoFolder设置拍照保存目录，默认是/sdcard/DICM/GalleryFinal/
 setFunctionConfig //配置全局GalleryFinal功能
+setNoAnimcation//关闭动画
+setPauseOnScrollListener//设置imageloader滑动加载图片优化OnScrollListener,根据选择的ImageLoader来选择PauseOnScrollListener
 ```
 
 5、如果你还想更深度的定制页面效果可以把资源文件名字定义成Gallery资源名已达到覆盖效果。如有不理解可以联系我。
@@ -506,82 +264,8 @@ setFunctionConfig //配置全局GalleryFinal功能
 -keep class cn.finalteam.galleryfinal.widget.zoonview.*{*;}
 ```
 
+## [更新日志](https://github.com/pengjianbo/GalleryFinal/blob/master/CHANGELOG.md)
 
-# 更新日志
-## V1.4.3
-* 多选传递maxsize
-
-## V1.4.2
-* 添加Android 6.0的支持
-* 添加动画或特效
-
-## V1.4.1
-* 解决创建文件夹bug
-
-## V1.4.0
-* 对Fresco image loader的支持
-* 添加图片预览功能
-* 解决jpeg图片编辑提示bug
-* 解决ThemeConfig设置方法没有返回Builder的bug
-* 主流Imageloader GalleryFinal配置实现
-* onActivityForResult改为事件回调形式
-* 优化FunctionConfig配置方式
-* 增强各手机兼容性
-
-## V1.3.0
-* 代码设置主题颜色
-* 支持对外打开相册
-* 支持对外打开编辑
-* 支持对外打开裁剪
-* 非png和非jpg图片不能编辑
-* 解决三星部分机型编辑出现OOM情况
-* 添加旋转是否覆盖源文件（默认不覆盖）
-* 添加裁剪是否覆盖源文件（默认不覆盖）
-* 添加必须裁剪功能
-
-## V1.2.7.1
-* 将不存在或已损坏的图片移除
-
-## V1.2.7	
-* 取消自动清理缓存
-* 解决单选编辑页拍照时返回多张图片bug
-
-## V1.2.6
-* 去掉V4包
-
-## V1.2.5
-* 自定义缓存目录
-* 添加已选集合
-
-## V1.2.4
-* 解决多选且不裁剪确认按钮无响应问题
-
-## V1.2.3
-* 解决筛选器无效问题
-
-## V1.2.2
-* 解决单选拍照问题
-* 提高稳定性
-
-## V1.2.0
-* 提高图片清晰度
-* 支持图片手动缩放
-* fix权限问题
-* 优化图片旋转
-* fix二次裁剪问题
-* fix多次旋转后图片不清晰问题
-* 添加图片选择过滤
-* 添加清理缓存
-* 提高体验效果和修改UI
-
-## V1.1.0
-* UI重改
-* 多选图片裁剪
-* 所有功能可配置
-* 优化图片裁剪
-* 解决OOM情况
-* 图片手动选择
-* 支持汉语和英语
 
 # 感谢（Thanks）
 * 图片裁剪[android-crop](https://github.com/jdamcd/android-crop)
@@ -610,3 +294,6 @@ License
     limitations under the License.
     
     
+
+
+  [1]: https://github.com/pengjianbo/GalleryFinal/blob/master/app/src/main/java/cn/finalteam/galleryfinal/sample/loader/UILImageLoader.java
